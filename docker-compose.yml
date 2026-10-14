@@ -1,0 +1,52 @@
+# Runs the MCP server in HTTP mode so web clients (Open WebUI) can reach it.
+#
+#   cp .env.example .env   # fill in GLPI_URL + credentials
+#   docker compose up --build -d
+#   curl -s http://127.0.0.1:3000/health
+#
+# For the stdio transport (Claude Desktop), skip compose and run the image
+# directly:  docker run -i --rm --env-file .env ghcr.io/silenceroom/mcp-glpi
+
+services:
+  mcp-glpi:
+    build: .
+    # Pull the published multi-arch image instead of building from source:
+    # image: ghcr.io/silenceroom/mcp-glpi:latest
+    # Copy .env.example to .env first; `required: false` keeps `docker compose
+    # ps` / `down` working before that file exists.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MCP_TRANSPORT: http
+      # Must stay 0.0.0.0 inside the container, or the published port reaches
+      # only the container's own loopback. Host-header validation is therefore
+      # off (startup logs a warning) — set MCP_HTTP_ALLOWED_HOSTS to restore it.
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT: "3000"
+      # Uncomment together with widening `ports` below before exposing this
+      # endpoint beyond the host:
+      # MCP_HTTP_AUTH_TOKEN: change-me
+    ports:
+      # Loopback-only by default, matching the server's own default: the
+      # endpoint has no authentication. Use "3000:3000" (plus the token above)
+      # to publish it on every interface.
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      # No curl/wget in the image — Node has global fetch. The port is read at
+      # runtime so a changed MCP_HTTP_PORT keeps the probe correct.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:' + (process.env.MCP_HTTP_PORT || 3000) + '/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    # glpi_upload_document resolves file_path inside the container, so files to
+    # upload have to be mounted in:
+    # volumes:
+    #   - ./uploads:/data:ro
