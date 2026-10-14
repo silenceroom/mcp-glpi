@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.5.0 — 2026-10-14
+
+### Added
+
+- **Docker**: a multi-stage `Dockerfile` (Node 24 alpine, non-root `node`
+  user), a `docker-compose.yml` that runs the HTTP transport with a
+  `/health` healthcheck, and `.env.example` as the credential template for
+  compose and `docker run --env-file`. The image keeps stdio as its default
+  transport, so it also drops into Claude Desktop via
+  `docker run -i --rm --env-file .env mcp-glpi`; `docker run … --http` passes
+  CLI flags straight through.
+- **CI**: `.github/workflows/docker-publish.yml` builds `linux/amd64` +
+  `linux/arm64` and publishes to the GitHub Container Registry on a
+  `v<version>` tag, tagging the image `3.5.0`, `3.5` and `latest` (and `edge`
+  from a manual run on the default branch). The workflow fails if the git tag
+  and `package.json` version disagree.
+
 ## 3.4.0 — 2026-10-14
 
 ### Added
