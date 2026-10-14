@@ -48,7 +48,7 @@ import {
 import { SearchCriterion, SearchType, SearchLink } from './search.js';
 
 /** Keep in sync with package.json (see CLAUDE.md). */
-const SERVER_VERSION = '3.4.0';
+const SERVER_VERSION = '3.5.0';
 
 // ---------------------------------------------------------------------------
 // Validation Schemas

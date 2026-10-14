@@ -25,6 +25,8 @@ README documents what's exposed today.
   attachment, satisfaction, overdue (SLA) tickets.
 - **Resolved foreign keys by default**: detail views return `users_id_tech: 42`
   *and* the resolved name, so the LLM doesn't have to guess.
+- **Container-ready**: one image runs either transport, and
+  `docker compose up` serves the HTTP endpoint — see [Docker](#docker).
 
 ## Configuration
 
@@ -77,7 +79,7 @@ npx mcp-glpi --http --port 3000
 ```
 
 ```
-MCP GLPI Server v3.4.0 listening on http://127.0.0.1:3000/mcp
+MCP GLPI Server v3.5.0 listening on http://127.0.0.1:3000/mcp
   transport: streamable HTTP (stateless, JSON responses)
   auth: none — bind to loopback or set MCP_HTTP_AUTH_TOKEN before exposing this port
 ```
@@ -116,7 +118,8 @@ Requires Open WebUI v0.6.31+.
 2. In Open WebUI: **Admin Settings → External Tools → + (Add Server)**.
 3. **Type**: `MCP (Streamable HTTP)` — *not* OpenAPI.
 4. **Server URL**: `http://<host>:3000/mcp`
-   (Open WebUI in Docker reaching a host-run server: `http://host.docker.internal:3000/mcp`).
+   (Open WebUI in Docker reaching a host-run server: `http://host.docker.internal:3000/mcp`;
+   both in Docker on the same network: `http://mcp-glpi:3000/mcp` — see [Docker](#docker)).
 5. **Auth**: `None`, unless you set `MCP_HTTP_AUTH_TOKEN` — then `Bearer` and
    paste the token as the key. `Bearer` with an empty key is rejected by Open WebUI.
 6. **Save**, then enable the tool per chat via **+ → Integrations → Tools**.
@@ -136,6 +139,82 @@ network. Every HTTP client shares the single configured GLPI account.
 (DNS-rebinding protection). It defaults to the loopback names plus
 `host.docker.internal`, and is switched off when the bind address is not
 loopback — startup logs a warning in that case.
+
+## Docker
+
+One image serves both transports: stdio by default, HTTP with `--http`. It is
+built from Node 24 alpine and runs as the non-root `node` user.
+
+```bash
+docker build -t mcp-glpi .
+docker run --rm mcp-glpi --help
+```
+
+### docker compose (HTTP)
+
+```bash
+cp .env.example .env     # GLPI_URL + credentials
+docker compose up --build -d
+curl -s http://127.0.0.1:3000/health
+```
+
+MCP is then served at `http://127.0.0.1:3000/mcp`. The compose file sets
+`MCP_TRANSPORT=http`, `MCP_HTTP_HOST=0.0.0.0`, `MCP_HTTP_PORT=3000`, publishes
+the port on the host loopback only, and probes `/health` for container health.
+To publish it on every interface, change `ports` to `"3000:3000"` **and** set
+`MCP_HTTP_AUTH_TOKEN` — the endpoint is unauthenticated by default.
+
+`docker compose pull` fetches the published image instead of building, if you
+uncomment the `image:` line.
+
+### docker run
+
+```bash
+# HTTP
+docker run --rm -p 127.0.0.1:3000:3000 --env-file .env \
+  ghcr.io/silenceroom/mcp-glpi:latest --http --host 0.0.0.0
+
+# stdio (Claude Desktop / Claude Code)
+docker run -i --rm --env-file .env ghcr.io/silenceroom/mcp-glpi:latest
+```
+
+CLI flags go after the image name and override the `MCP_*` environment
+variables. In a container the HTTP bind address must be `0.0.0.0` for the
+published port to reach it.
+
+Claude Desktop config for the stdio form:
+
+```json
+{
+  "mcpServers": {
+    "glpi": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--env-file", "/path/to/.env", "ghcr.io/silenceroom/mcp-glpi:latest"]
+    }
+  }
+}
+```
+
+### Published image tags
+
+`ghcr.io/silenceroom/mcp-glpi` carries `latest`, `<major>.<minor>.<patch>` and
+`<major>.<minor>` (both `linux/amd64` and `linux/arm64`), published by
+[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)
+when a `v<version>` git tag is pushed — the tag must match `package.json`.
+A manual run of that workflow on the default branch publishes `edge`.
+
+### Notes
+
+- **Uploading files**: `glpi_upload_document` reads `file_path` from the
+  filesystem of the process running the server, so the file has to be inside
+  the container — mount it (`-v "$PWD/uploads:/data:ro"`) and pass
+  `file_path: /data/report.pdf`.
+- **Reaching it from Open WebUI**: from the host, `http://127.0.0.1:3000/mcp`;
+  from another container on the same Docker network,
+  `http://mcp-glpi:3000/mcp` (container-to-container traffic goes straight to
+  the container's port, so the loopback-only publication is not in the way).
+- **Health status**: only compose containers have one — the probe is defined in
+  `docker-compose.yml`, since a stdio container has no port to check.
 
 ## Tool catalogue
 
