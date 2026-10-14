@@ -1,0 +1,35 @@
+# Build context hygiene for the Dockerfile. Two of these matter for more than
+# image size: `.env` (real GLPI credentials must never enter a layer) and `.git`
+# (large, and never read by the build).
+
+.git
+.gitignore
+
+# Never copied into the build stage — `npm ci` reinstalls from the lockfile and
+# `npm run build` recompiles from src/.
+node_modules
+dist
+
+# Local-only: tests, smoke script, agent tooling, docs, editor/OS noise.
+test
+scripts
+.github
+.codegraph
+.claude
+plans
+.vscode
+.idea
+CLAUDE.md
+README.md
+CHANGELOG.md
+LICENSE
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Secrets and local state.
+.env
+.env.*
+*.log
+*.tgz
+.DS_Store
