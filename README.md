@@ -197,11 +197,20 @@ Claude Desktop config for the stdio form:
 
 ### Published image tags
 
-`ghcr.io/silenceroom/mcp-glpi` carries `latest`, `<major>.<minor>.<patch>` and
-`<major>.<minor>` (both `linux/amd64` and `linux/arm64`), published by
-[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)
-when a `v<version>` git tag is pushed — the tag must match `package.json`.
-A manual run of that workflow on the default branch publishes `edge`.
+Published to `ghcr.io/silenceroom/mcp-glpi` by
+[.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml):
+
+| Trigger | Image tags |
+|---|---|
+| push to `main` | `latest`, `sha-<short>` |
+| tag `v<version>` | `<version>`, `<major>.<minor>`, `latest` |
+| pull request | none — built but not pushed |
+
+`latest` tracks the trunk, so it can point at code newer than the last release;
+pin a `<version>` tag for anything that has to stay put. Images are built for
+`linux/amd64` and `linux/arm64` (amd64 only on pull requests, which publish
+nothing). Tests and `tsc` must pass first, and a release tag that disagrees with
+`package.json` fails the build.
 
 ### Notes
 

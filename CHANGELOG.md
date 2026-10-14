@@ -11,11 +11,13 @@
   transport, so it also drops into Claude Desktop via
   `docker run -i --rm --env-file .env mcp-glpi`; `docker run … --http` passes
   CLI flags straight through.
-- **CI**: `.github/workflows/docker-publish.yml` builds `linux/amd64` +
-  `linux/arm64` and publishes to the GitHub Container Registry on a
-  `v<version>` tag, tagging the image `3.5.0`, `3.5` and `latest` (and `edge`
-  from a manual run on the default branch). The workflow fails if the git tag
-  and `package.json` version disagree.
+- **CI**: `.github/workflows/docker-publish.yml` builds the image
+  (`linux/amd64` + `linux/arm64`) and publishes it to the GitHub Container
+  Registry. Pushing to `main` refreshes `latest` (plus a `sha-<short>` tag);
+  pushing a `v<version>` tag publishes `<version>`, `<major>.<minor>` and
+  `latest`; pull requests build without pushing. Tests and `tsc` run first and
+  gate the job, and the build fails when the release tag, `package.json` and
+  `SERVER_VERSION` disagree.
 
 ## 3.4.0 — 2026-10-14
 
